@@ -1,0 +1,39 @@
+{
+  "name": "arkuibuilder-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that gives AI assistants ready-made HarmonyOS ArkUI components from ArkUIBuilder",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "mcp",
+    "harmonyos",
+    "arkui",
+    "arkts",
+    "claude"
+  ],
+  "author": "ArkUIBuilder",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2"
+  },
+  "bin": {
+    "arkuibuilder-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
