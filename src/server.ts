@@ -17,7 +17,7 @@ import {
 } from "./samples.js";
 import { addTemplate, allTemplates, findTemplate, searchTemplates, stateFields, templateCode, type Template } from "./templates.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 
 const INSTRUCTIONS = `ArkUIBuilder provides ready-made, tested HarmonyOS ArkUI (ArkTS) components.
 
