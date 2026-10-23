@@ -1,6 +1,6 @@
 {
   "name": "arkuibuilder-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server that gives AI assistants ready-made HarmonyOS ArkUI components from ArkUIBuilder and 550+ open source HarmonyOS sample projects",
   "main": "dist/index.js",
   "scripts": {

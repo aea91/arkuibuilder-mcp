@@ -15,7 +15,7 @@ import {
   type Sample,
 } from "./samples.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 const INSTRUCTIONS = `ArkUIBuilder provides ready-made, tested HarmonyOS ArkUI (ArkTS) components.
 
