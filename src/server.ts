@@ -3,6 +3,17 @@ import { isAbsolute, normalize } from "node:path";
 import { z } from "zod";
 import { allWidgets, findWidget, searchWidgets, type Widget } from "./catalog.js";
 import { addWidget } from "./importer.js";
+import {
+  allSamples,
+  findSample,
+  importedKits,
+  keyFiles,
+  permissions,
+  readSampleFile,
+  sampleFiles,
+  searchSamples,
+  type Sample,
+} from "./samples.js";
 
 export const VERSION = "0.1.0";
 
@@ -14,7 +25,13 @@ When building HarmonyOS UI, prefer these components over writing your own:
    component's code yourself: add_widget writes the file, which costs no tokens and keeps the tested code.
 3. In the page, write only the returned call (e.g. \`ColorStudioFb({ step: this.step })\`) inside
    build(), and declare the state it needs (an @Link parameter needs an @State/@Link variable in the page).
-Use get_widget with include_code only when you must adapt a component's internals.`;
+Use get_widget with include_code only when you must adapt a component's internals.
+
+For HarmonyOS APIs and capabilities (sensors, heart rate, digital crown, notifications, maps, Bluetooth,
+NFC, storage, payments…), search the open source samples before writing the code from memory:
+search_samples finds a working project, and get_sample returns its outline (permissions, files and the
+kits each file uses). Then fetch only the files you need with get_sample's files parameter. The samples
+target watches; Lite Wearable (JavaScript) code does not run on Smart Wearable (ArkTS) devices.`;
 
 /** One line per widget: enough to choose and call it without fetching its code. */
 function summary(w: Widget): string {
@@ -44,6 +61,42 @@ function overview(widgets: Widget[]): string {
 }
 
 const text = (t: string, isError = false) => ({ content: [{ type: "text" as const, text: t }], isError });
+
+const KIND_LABEL: Record<Sample["kind"], string> = {
+  "how-to": "How-to",
+  app: "Sample app",
+  lite: "Lite Wearable app (JavaScript)",
+  library: "ArkTS library",
+  companion: "Phone companion app",
+  "cross-platform": "Cross platform",
+};
+
+function sampleSummary(s: Sample): string {
+  const meta = [KIND_LABEL[s.kind], s.sdk].filter(Boolean).join(" · ");
+  const kits = s.kits.length ? `\n  kits: ${s.kits.join(", ")}` : "";
+  return `- ${s.repo} [${meta}]\n  ${s.description}${kits}`;
+}
+
+function samplesOverview(): string {
+  const count = (key: (s: Sample) => string) => {
+    const m = new Map<string, number>();
+    for (const s of allSamples()) m.set(key(s), (m.get(key(s)) ?? 0) + 1);
+    return [...m].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} (${n})`).join(", ");
+  };
+  const kits = new Map<string, number>();
+  for (const s of allSamples()) for (const k of s.kits) kits.set(k, (kits.get(k) ?? 0) + 1);
+  const topKits = [...kits].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([k, n]) => `${k} (${n})`).join(", ");
+  return [
+    `${allSamples().length} open source HarmonyOS watch projects from Explore-In-HMOS.`,
+    `Kinds: ${count((s) => s.kind)}`,
+    `Domains: ${count((s) => s.domain)}`,
+    `Most used kits: ${topKits}`,
+    'Search with a query (e.g. "heart rate", "digital crown", "notification") and/or kind, kit or domain filters.',
+  ].join("\n");
+}
+
+const approxTokens = (bytes: number) => `~${Math.max(1, Math.round(bytes / 4)).toLocaleString("en-US")} tok`;
+const FENCE: Record<string, string> = { ets: "ts", ts: "ts", js: "js", hml: "html", css: "css", json5: "json", json: "json", kt: "kotlin", swift: "swift", dart: "dart" };
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "arkuibuilder", version: VERSION }, { instructions: INSTRUCTIONS });
@@ -150,5 +203,139 @@ export function createServer(): McpServer {
     },
   );
 
+  server.registerTool(
+    "search_samples",
+    {
+      title: "Search HarmonyOS sample projects",
+      description:
+        "Search 550+ open source HarmonyOS watch projects (Explore-In-HMOS): focused how-tos for one API or " +
+        "pattern, complete sample apps, Lite Wearable (JavaScript) apps and ArkTS libraries. Use it before " +
+        "writing HarmonyOS API code (sensors, health, digital crown, notifications, maps, Bluetooth, NFC, " +
+        "storage…) from memory. Call with no arguments for an overview.",
+      inputSchema: {
+        query: z.string().optional().describe("Words to match in repo name, topics, kits or description"),
+        kind: z
+          .enum(["how-to", "app", "lite", "library", "companion", "cross-platform"])
+          .optional()
+          .describe("how-to (one technique), app (complete app), lite (Lite Wearable JS), library, companion (phone app)"),
+        kit: z.string().optional().describe("A kit the project uses, e.g. SensorServiceKit or @kit.LocationKit"),
+        domain: z
+          .string()
+          .optional()
+          .describe("sensors-and-health, location-and-maps, media-and-audio, connectivity-and-network, background-and-notifications, data-and-storage or ui-and-interaction"),
+        limit: z.number().int().min(1).max(50).optional().describe("Maximum results (default 10)"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ query, kind, kit, domain, limit }) => {
+      if (!query && !kind && !kit && !domain) return text(samplesOverview());
+      const found = searchSamples({ query, kind, kit, domain });
+      if (found.length === 0) return text(`No samples match.\n\n${samplesOverview()}`);
+      const shown = found.slice(0, limit ?? 10);
+      const more = found.length > shown.length ? `\n(${found.length - shown.length} more; refine the query or raise limit.)` : "";
+      return text(
+        `${found.length} match${found.length === 1 ? "" : "es"}:\n${shown.map(sampleSummary).join("\n")}${more}\n` +
+          "Next: get_sample(name) for its permissions and files.",
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_sample",
+    {
+      title: "Get a HarmonyOS sample project",
+      description:
+        "Outline of one sample project: description, SDK, requested permissions, and its source files with " +
+        "size and the kits each file imports. Pass files to read specific files, or include_code to read the " +
+        "files that use the sample's distinctive kits (up to max_chars). Code is fetched from GitHub.",
+      inputSchema: {
+        name: z.string().describe("Repository name (e.g. how-to-get-heart-rate-with-sensorkit) or its GitHub URL"),
+        files: z
+          .array(z.string())
+          .max(20)
+          .optional()
+          .describe("Paths from the outline to read; a unique file name such as Index.ets also works"),
+        include_code: z.boolean().optional().describe("Read the key files automatically (default false)"),
+        max_chars: z.number().int().min(2000).max(200000).optional().describe("Code budget for this call (default 40000)"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ name, files, include_code, max_chars }) => {
+      const s = findSample(name);
+      if (!s) return text(`No sample named "${name}". Use search_samples.`, true);
+      try {
+        const list = await sampleFiles(s);
+        // Read every source file once (small projects, cached) to show which kits each one uses.
+        const withKits = await mapLimit(list, 8, async (f) => ({
+          ...f,
+          kits: /\.(ets|ts|js)$/.test(f.path) ? importedKits(await readSampleFile(s, f.path)) : [],
+        }));
+        const configs = list.filter((f) => /(module\.json5|config\.json)$/.test(f.path));
+        const perms = [...new Set((await Promise.all(configs.map((f) => readSampleFile(s, f.path)))).flatMap(permissions))];
+
+        const lines = [
+          `${s.repo} — ${KIND_LABEL[s.kind]}${s.sdk ? ` · ${s.sdk}` : ""}`,
+          s.description,
+          s.url,
+        ];
+        if (s.kind === "lite") lines.push("Lite Wearable (JavaScript): does not run on Smart Wearable / ArkTS devices.");
+        if (s.kits.length) lines.push(`Kits: ${s.kits.join(", ")}`);
+        lines.push(`Permissions: ${perms.length ? perms.join(", ") : "none requested"}`);
+        lines.push("", `Files (${list.length}):`);
+        for (const f of withKits) lines.push(`  ${f.path}  ${approxTokens(f.size)}${f.kits.length ? `  [${f.kits.join(", ")}]` : ""}`);
+
+        let wantedPaths: string[] = [];
+        const unknown: string[] = [];
+        if (files?.length) {
+          for (const want of files) {
+            const w = want.replace(/^\/+/, "");
+            const exact = list.find((f) => f.path === w);
+            const bySuffix = list.filter((f) => f.path.endsWith(`/${w}`));
+            const hit = exact ?? (bySuffix.length === 1 ? bySuffix[0] : undefined);
+            if (hit) wantedPaths.push(hit.path);
+            else unknown.push(bySuffix.length > 1 ? `${want} (ambiguous: ${bySuffix.map((f) => f.path).join(", ")})` : want);
+          }
+        } else if (include_code) {
+          wantedPaths = keyFiles(withKits);
+        }
+
+        const budget = max_chars ?? 40000;
+        let used = 0;
+        const skipped: string[] = [];
+        for (const path of [...new Set(wantedPaths)]) {
+          const code = await readSampleFile(s, path);
+          if (used > 0 && used + code.length > budget) {
+            skipped.push(path);
+            continue;
+          }
+          used += code.length;
+          const ext = path.split(".").pop() ?? "";
+          lines.push("", `### ${path}`, "```" + (FENCE[ext] ?? ""), code.trimEnd(), "```");
+        }
+        if (unknown.length) lines.push("", `Not found: ${unknown.join(", ")}`);
+        if (skipped.length) lines.push("", `Over the ${budget}-char budget, not included: ${skipped.join(", ")} (raise max_chars or request them in another call).`);
+        if (!wantedPaths.length) lines.push("", "Read files with files: [...] or include_code: true.");
+        return text(lines.join("\n"));
+      } catch (e) {
+        return text(`${e instanceof Error ? e.message : String(e)}\nRepository: ${s.url}`, true);
+      }
+    },
+  );
+
   return server;
+}
+
+/** Promise.all with at most `n` tasks running at once. */
+async function mapLimit<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return out;
 }

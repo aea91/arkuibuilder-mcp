@@ -36,9 +36,9 @@ const call = async (name, args) => {
   return { text: r.content.map((c) => c.text).join("\n"), isError: r.isError };
 };
 
-test("lists the three tools and gives usage instructions", async () => {
+test("lists the tools and gives usage instructions", async () => {
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ["add_widget", "get_widget", "search_widgets"]);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ["add_widget", "get_sample", "get_widget", "search_samples", "search_widgets"]);
   assert.match(client.getInstructions(), /Do NOT re-type or rewrite/);
 });
 
