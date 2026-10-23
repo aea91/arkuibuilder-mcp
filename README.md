@@ -30,6 +30,37 @@ It also lists **My Widgets** saved with the [ArkUIBuilder IDE plugin](https://gi
 (found automatically in the IDE config folders; set `ARKUIBUILDER_MY_WIDGETS` to point at a
 `my-widgets.json` elsewhere).
 
+### Page templates
+
+Complete pages built from catalog widgets. `add_template` writes the page, copies its widgets into
+`components/` with their imports, and adds the route to `main_pages.json`; the page compiles as-is, so the
+assistant only changes texts and data.
+
+| Tool | What it does |
+|---|---|
+| `search_templates` | Lists the templates; filter by words or platform. |
+| `add_template` | Writes the page to `target_file` (struct named after the file), adds its widgets, registers the route. Never replaces an existing page unless `overwrite: true`. |
+
+| Template | Platform | Widgets |
+|---|---|---|
+| `fitness-today` | Mobile | segmented control, activity rings, steps, water, sleep |
+| `shop-home` | Mobile | bottom tab bar, search, category chips, promo, product, cart, coupon, order tracking |
+| `wallet-home` | Mobile | wallet card, budget donut, transactions, stock |
+| `profile-settings` | Mobile | profile card, switch row, settings list, theme toggle |
+| `sign-in` | Mobile | login, sign-up form, password strength |
+| `now-playing` | Mobile | music card, waveform, equalizer, volume |
+| `weather-today` | Mobile | weather card, hourly, sunrise arc, radar |
+| `watch-health` | Wearable | heart rate, steps, rings, SpO2, sleep (vertical swipe) |
+| `watch-workout` | Wearable | workout, heart rate, stopwatch, music |
+| `watch-home` | Wearable | digital face, weather, calendar, reminders, smart home |
+| `desktop-workspace` | PC (2in1) | dashboard, kanban, month calendar, inbox (top tabs) |
+
+```text
+You:    Make a watch app for heart rate and sleep.
+Claude: search_templates("watch health")                 → watch-health
+        add_template(watch-health, …/pages/Index.ets)     ← page + 5 widgets + route written by the server
+```
+
 ### Sample projects
 
 For HarmonyOS APIs (sensors, heart rate, digital crown, notifications, maps, Bluetooth, NFC, storage, …) the
@@ -80,6 +111,7 @@ From a local checkout, use `node /path/to/arkuibuilder-mcp/dist/index.js` as the
 npm install
 npm test               # builds, then runs parser, importer and stdio end-to-end tests
 npm run build:samples  # regenerates data/samples.json from the hmos-index skill references
+npm run check:templates -- <project>  # compiles every template in a scratch copy of a HarmonyOS project
 ```
 
 The component parser is a port of the IDE plugin's `ComponentParser.kt`; a test checks that both produce the

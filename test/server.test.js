@@ -38,7 +38,7 @@ const call = async (name, args) => {
 
 test("lists the tools and gives usage instructions", async () => {
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ["add_widget", "get_sample", "get_widget", "search_samples", "search_widgets"]);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ["add_template", "add_widget", "get_sample", "get_widget", "search_samples", "search_templates", "search_widgets"]);
   assert.match(client.getInstructions(), /Do NOT re-type or rewrite/);
 });
 
@@ -77,4 +77,26 @@ test("add_widget writes the component and import", async () => {
   assert.match(readFileSync(join(ets, "components", "ColorStudioFb.ets"), "utf8"), /export struct ColorStudioFb/);
 
   assert.equal((await call("add_widget", { name: "ColorStudioFb", target_file: "pages/Index.ets" })).isError, true);
+});
+
+test("search_templates and add_template", async () => {
+  const all = await call("search_templates", {});
+  assert.match(all.text, /fitness-today: Fitness Today \[Mobile\]/);
+  assert.match((await call("search_templates", { query: "watch workout" })).text, /^1 template:\n- watch-workout/);
+
+  const ets = join(work, "tpl", "entry", "src", "main", "ets");
+  mkdirSync(join(ets, "pages"), { recursive: true });
+  const page = join(ets, "pages", "Health.ets");
+  const r = await call("add_template", { name: "watch-health", target_file: page });
+  assert.equal(r.isError, false, r.text);
+  assert.match(r.text, /Created .*Health\.ets \(struct Health, Watch Health\)/);
+  assert.match(r.text, /Widgets added to components\/: WatchHeartFb, WatchStepsFb/);
+  assert.match(r.text, /Page state: page: number = 0/);
+  assert.match(r.text, /add "pages\/Health" to the module's pages yourself/);
+  assert.match(readFileSync(page, "utf8"), /struct Health \{/);
+
+  const again = await call("add_template", { name: "watch-home", target_file: page });
+  assert.equal(again.isError, true);
+  assert.match(again.text, /already exists/);
+  assert.equal((await call("add_template", { name: "nope", target_file: page })).isError, true);
 });

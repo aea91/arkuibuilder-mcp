@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { readFileSync } from "node:fs";
 import { isAbsolute, normalize } from "node:path";
 import { z } from "zod";
 import { allWidgets, findWidget, searchWidgets, type Widget } from "./catalog.js";
@@ -14,6 +15,7 @@ import {
   searchSamples,
   type Sample,
 } from "./samples.js";
+import { addTemplate, allTemplates, findTemplate, searchTemplates, stateFields, templateCode, type Template } from "./templates.js";
 
 export const VERSION = "0.2.0";
 
@@ -26,6 +28,10 @@ When building HarmonyOS UI, prefer these components over writing your own:
 3. In the page, write only the returned call (e.g. \`ColorStudioFb({ step: this.step })\`) inside
    build(), and declare the state it needs (an @Link parameter needs an @State/@Link variable in the page).
 Use get_widget with include_code only when you must adapt a component's internals.
+
+For a whole page or app screen (fitness, shop, wallet, profile/settings, sign in, music, weather, watch apps,
+a PC workspace), check search_templates first: add_template writes a complete page built from these widgets,
+adds the widgets and registers the route, so you only adjust texts and data afterwards.
 
 For HarmonyOS APIs and capabilities (sensors, heart rate, digital crown, notifications, maps, Bluetooth,
 NFC, storage, payments…), search the open source samples before writing the code from memory:
@@ -93,6 +99,10 @@ function samplesOverview(): string {
     `Most used kits: ${topKits}`,
     'Search with a query (e.g. "heart rate", "digital crown", "notification") and/or kind, kit or domain filters.',
   ].join("\n");
+}
+
+function templateSummary(t: Template): string {
+  return `- ${t.id}: ${t.title} [${t.platform}]\n  ${t.description}\n  widgets: ${t.widgets.join(", ")}`;
 }
 
 const approxTokens = (bytes: number) => `~${Math.max(1, Math.round(bytes / 4)).toLocaleString("en-US")} tok`;
@@ -318,6 +328,81 @@ export function createServer(): McpServer {
         return text(lines.join("\n"));
       } catch (e) {
         return text(`${e instanceof Error ? e.message : String(e)}\nRepository: ${s.url}`, true);
+      }
+    },
+  );
+
+  server.registerTool(
+    "search_templates",
+    {
+      title: "Search ArkUIBuilder page templates",
+      description:
+        "Ready-made pages built from ArkUIBuilder widgets (e.g. fitness dashboard, shop with tab bar, wallet, " +
+        "profile and settings, sign in, music player, weather, watch health/workout/home, PC workspace). " +
+        "Call with no arguments to list them all.",
+      inputSchema: {
+        query: z.string().optional().describe("Words to match in name, tags, widgets or description"),
+        platform: z.string().optional().describe("Mobile, Wearable or PC (2in1)"),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ query, platform }) => {
+      const found = query || platform ? searchTemplates({ query, platform }) : allTemplates();
+      if (found.length === 0) return text(`No templates match. All templates:\n${allTemplates().map(templateSummary).join("\n")}`);
+      return text(`${found.length} template${found.length === 1 ? "" : "s"}:\n${found.map(templateSummary).join("\n")}\nNext: add_template(id, target_file).`);
+    },
+  );
+
+  server.registerTool(
+    "add_template",
+    {
+      title: "Add a page template to the project",
+      description:
+        "Writes a complete page to target_file (its struct is named after the file), copies every widget it " +
+        "uses into components/ with their imports, and adds the page to main_pages.json. The page compiles " +
+        "as-is; then edit its texts, data and state. Refuses to replace an existing target_file unless overwrite is true.",
+      inputSchema: {
+        name: z.string().describe("Template id from search_templates, e.g. fitness-today"),
+        target_file: z
+          .string()
+          .describe("Absolute path of the new page, inside <module>/src/main/ets (e.g. …/ets/pages/Fitness.ets)"),
+        overwrite: z.boolean().optional().describe("Replace target_file if it already exists (default false)"),
+        include_code: z.boolean().optional().describe("Return the written page code (default false)"),
+      },
+      annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async ({ name, target_file, overwrite, include_code }) => {
+      if (!isAbsolute(target_file)) return text("target_file must be an absolute path.", true);
+      const t = findTemplate(name);
+      if (!t) return text(`No template named "${name}". Templates: ${allTemplates().map((x) => x.id).join(", ")}`, true);
+      const { widgets, catalogError } = await allWidgets();
+      if (catalogError) return text(`Catalog unavailable: ${catalogError}. Templates need the catalog's widgets; try again later.`, true);
+      try {
+        const r = addTemplate(t, widgets, normalize(target_file), overwrite ?? false, findWidget);
+        const lines = [
+          `${{ created: "Created", unchanged: "Already up to date:", replaced: "Replaced" }[r.pageStatus]} ${r.pageFile} (struct ${r.structName}, ${t.title})`,
+          {
+            added: `Added route "${r.route}" to main_pages.json`,
+            present: `Route "${r.route}" already in main_pages.json`,
+            "no-profile": `No resources/base/profile/main_pages.json found; add "${r.route}" to the module's pages yourself`,
+          }[r.routeStatus],
+        ];
+        const created = r.widgets.filter((w) => w.result.fileStatus === "created").map((w) => w.name);
+        const same = r.widgets.filter((w) => w.result.fileStatus === "unchanged").map((w) => w.name);
+        const kept = r.widgets.filter((w) => w.result.fileStatus === "kept").map((w) => w.name);
+        if (created.length) lines.push(`Widgets added to components/: ${created.join(", ")}`);
+        if (same.length) lines.push(`Widgets already present: ${same.join(", ")}`);
+        if (kept.length) lines.push(`Kept existing different components/ files (check they still fit this page): ${kept.join(", ")}`);
+        const missing = [...new Set(r.widgets.flatMap((w) => w.result.missingResources))];
+        if (missing.length) lines.push(`Missing resources in this module: ${missing.join(", ")}`);
+        const code = templateCode(t);
+        const state = stateFields(code);
+        if (state.length) lines.push(`Page state: ${state.join("; ")}`);
+        lines.push("The page is ready to run. Edit texts and data in place; do not re-type the widgets.");
+        if (include_code) lines.push("", "```ts", readFileSync(r.pageFile, "utf8").trimEnd(), "```");
+        return text(lines.join("\n"));
+      } catch (e) {
+        return text(e instanceof Error ? e.message : String(e), true);
       }
     },
   );

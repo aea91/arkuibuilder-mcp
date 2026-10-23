@@ -7,7 +7,8 @@
     "build": "tsc",
     "test": "npm run build && node --test test/",
     "prepublishOnly": "npm test",
-    "build:samples": "node scripts/build-samples.mjs"
+    "build:samples": "node scripts/build-samples.mjs",
+    "check:templates": "node scripts/check-templates.mjs"
   },
   "keywords": [
     "mcp",
@@ -33,6 +34,7 @@
   "files": [
     "dist",
     "data",
+    "templates",
     "README.md"
   ],
   "engines": {

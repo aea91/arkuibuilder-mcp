@@ -1,0 +1,103 @@
+{
+  "templates": [
+    {
+      "id": "fitness-today",
+      "file": "FitnessToday.ets",
+      "title": "Fitness Today",
+      "platform": "Mobile",
+      "description": "Daily activity page: Day/Week/Month switch, activity rings with move/exercise/stand values, steps, water and sleep.",
+      "tags": ["fitness", "health", "activity", "dashboard", "steps", "sleep"],
+      "widgets": ["SegmentedControlFb", "ActivityRingsFb", "StepCounterFb", "WaterTrackerFb", "SleepChartFb"]
+    },
+    {
+      "id": "shop-home",
+      "file": "ShopHome.ets",
+      "title": "Shop Home",
+      "platform": "Mobile",
+      "description": "Shopping app shell with a bottom tab bar: home tab (search, category chips, promo, product), cart tab (cart summary, coupon, order tracking) and an empty state for the other tabs.",
+      "tags": ["shopping", "e-commerce", "store", "cart", "tabs", "bottom navigation"],
+      "widgets": ["SearchBarFb", "FilterChipsFb", "PromoCardFb", "ProductCardFb", "CartSummaryFb", "CouponFb", "OrderCardFb", "EmptyStateFb", "NavGradientFb"]
+    },
+    {
+      "id": "wallet-home",
+      "file": "WalletHome.ets",
+      "title": "Wallet Home",
+      "platform": "Mobile",
+      "description": "Finance home: balance card, monthly budget donut, recent transactions and a stock card.",
+      "tags": ["finance", "wallet", "banking", "budget", "transactions", "money"],
+      "widgets": ["WalletCardFb", "ExpenseDonutFb", "TransactionsFb", "StockCardFb"]
+    },
+    {
+      "id": "profile-settings",
+      "file": "ProfileSettings.ets",
+      "title": "Profile & Settings",
+      "platform": "Mobile",
+      "description": "Profile card, a notifications switch row, settings list and theme toggle.",
+      "tags": ["profile", "settings", "account", "preferences", "switch"],
+      "widgets": ["ProfileCardFb", "SwitchFb", "SettingsListFb", "ThemeToggleFb"]
+    },
+    {
+      "id": "sign-in",
+      "file": "SignIn.ets",
+      "title": "Sign In / Sign Up",
+      "platform": "Mobile",
+      "description": "Login form that switches to a sign-up form with a password strength meter.",
+      "tags": ["login", "sign in", "sign up", "register", "auth", "onboarding"],
+      "widgets": ["LoginFb", "SignupFormFb", "PasswordStrengthFb"]
+    },
+    {
+      "id": "now-playing",
+      "file": "NowPlaying.ets",
+      "title": "Now Playing",
+      "platform": "Mobile",
+      "description": "Music player page: track card with play/pause and progress (advanced by a timer), waveform, equalizer and volume.",
+      "tags": ["music", "audio", "player", "media"],
+      "widgets": ["MusicCardFb", "WaveformFb", "EqualizerFb", "VolumeSliderFb"]
+    },
+    {
+      "id": "weather-today",
+      "file": "WeatherToday.ets",
+      "title": "Weather Today",
+      "platform": "Mobile",
+      "description": "Weather page: current conditions, hourly forecast, sunrise/sunset arc and radar.",
+      "tags": ["weather", "forecast"],
+      "widgets": ["WeatherCardFb", "WeatherHourlyFb", "SunriseArcFb", "WeatherRadarFb"]
+    },
+    {
+      "id": "watch-health",
+      "file": "WatchHealth.ets",
+      "title": "Watch Health",
+      "platform": "Wearable",
+      "description": "Round-watch app with vertically swiped screens and page dots: heart rate, steps, activity rings, blood oxygen, sleep.",
+      "tags": ["watch", "wearable", "health", "heart rate", "steps", "spo2", "sleep"],
+      "widgets": ["WatchHeartFb", "WatchStepsFb", "WatchRingsFb", "WatchSpo2Fb", "WatchSleepFb"]
+    },
+    {
+      "id": "watch-workout",
+      "file": "WatchWorkout.ets",
+      "title": "Watch Workout",
+      "platform": "Wearable",
+      "description": "Workout app for the watch, vertically swiped: workout stats, heart rate, stopwatch, music controls.",
+      "tags": ["watch", "wearable", "workout", "fitness", "running", "stopwatch", "music"],
+      "widgets": ["WatchWorkoutFb", "WatchHeartFb", "WatchStopwatchFb", "WatchMusicFb"]
+    },
+    {
+      "id": "watch-home",
+      "file": "WatchHome.ets",
+      "title": "Watch Home",
+      "platform": "Wearable",
+      "description": "Everyday watch app, vertically swiped: digital watch face, weather, calendar, reminders, smart home.",
+      "tags": ["watch", "wearable", "watch face", "weather", "calendar", "reminders", "smart home"],
+      "widgets": ["WatchDigitalFb", "WatchWeatherFb", "WatchCalendarFb", "WatchRemindersFb", "WatchSmartHomeFb"]
+    },
+    {
+      "id": "desktop-workspace",
+      "file": "DesktopWorkspace.ets",
+      "title": "Desktop Workspace",
+      "platform": "PC (2in1)",
+      "description": "PC/tablet window with top tabs switching between an analytics dashboard, kanban board, month calendar and inbox. The panels are animated mockups driven by a step counter.",
+      "tags": ["pc", "2in1", "tablet", "desktop", "dashboard", "kanban", "calendar", "inbox", "productivity"],
+      "widgets": ["DashboardFb", "KanbanFb", "CalendarMonthFb", "ChatDesktopFb"]
+    }
+  ]
+}
